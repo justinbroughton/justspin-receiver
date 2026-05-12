@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Justspin HUD Receiver</title>
+    <script src="//www.gstatic.com/cast/sdk/libs/caf/receiver/v3/cast_receiver_framework.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: black;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            color: white;
+        }
+        #player {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            box-sizing: border-box;
+            pointer-events: none; /* Let clicks pass through to player if needed */
+        }
+        .glass-panel {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        #song-info {
+            font-size: 24px;
+            font-weight: 500;
+        }
+        #song-title {
+            color: #00E676; /* Vibrant Green */
+            font-weight: 700;
+        }
+        #activity-container {
+            align-self: center;
+            margin-top: 20vh;
+            text-align: center;
+            min-width: 400px;
+        }
+        #activity-name {
+            font-size: 64px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        #timer {
+            font-size: 120px;
+            font-weight: 900;
+            font-family: monospace;
+            color: #FF5252; /* Vibrant Red */
+            text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        #bottom-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        .metric {
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 48px;
+            font-weight: 900;
+            color: #40C4FF; /* Vibrant Blue */
+        }
+        .metric-label {
+            font-size: 16px;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: #B0BEC5;
+        }
+    </style>
+</head>
+<body>
+    <div id="player"></div>
+    
+    <div id="hud-overlay">
+        <div id="top-bar" class="glass-panel">
+            <div id="song-info">
+                Playing: <span id="song-title">Waiting for song...</span>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="target-rpm">--</div>
+                <div class="metric-label">Target RPM</div>
+            </div>
+        </div>
+
+        <div id="activity-container" class="glass-panel">
+            <div id="activity-name">GET READY</div>
+            <div id="timer">00:00</div>
+        </div>
+
+        <div id="bottom-bar" class="glass-panel">
+            <div class="metric">
+                <div class="metric-value" id="current-rpm">--</div>
+                <div class="metric-label">Your RPM</div>
+            </div>
+            <div id="status-msg">Connected to Justspin</div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Cast Receiver
+        const context = cast.framework.CastReceiverContext.getInstance();
+        const playerManager = context.getPlayerManager();
+
+        // Custom message namespace
+        const NAMESPACE = 'urn:x-cast:com.justspin.hud';
+
+        context.addCustomMessageListener(NAMESPACE, function(event) {
+            console.log('Received message:', event.data);
+            const data = event.data;
+
+            if (data.type === 'UPDATE_HUD') {
+                if (data.songTitle) document.getElementById('song-title').textContent = data.songTitle;
+                if (data.activityName) document.getElementById('activity-name').textContent = data.activityName;
+                if (data.timer) document.getElementById('timer').textContent = data.timer;
+                if (data.targetRpm) document.getElementById('target-rpm').textContent = data.targetRpm;
+            } else if (data.type === 'LOAD_VIDEO') {
+                loadVideo(data.videoId);
+            }
+        });
+
+        context.start();
+
+        // YouTube Player API
+        let player;
+        function onYouTubeIframeAPIReady() {
+            console.log('YouTube API Ready');
+        }
+
+        function loadVideo(videoId) {
+            if (player) {
+                player.loadVideoById(videoId);
+            } else {
+                player = new YT.Player('player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: videoId,
+                    playerVars: {
+                        'autoplay': 1,
+                        'controls': 0, // Hide controls for clean HUD
+                        'rel': 0,
+                        'showinfo': 0
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
+            }
+        }
+
+        function onPlayerReady(event) {
+            event.target.playVideo();
+        }
+
+        function onPlayerStateChange(event) {
+            // Handle state changes if needed
+        }
+    </script>
+</body>
+</html>
