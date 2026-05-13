@@ -97,6 +97,30 @@
             text-transform: uppercase;
             color: #B0BEC5;
         }
+        #debug-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 350px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #00FF00;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 3;
+            pointer-events: none;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
@@ -127,6 +151,10 @@
         </div>
     </div>
 
+    <div id="debug-panel">
+        <div class="log-entry">Debug Log Started...</div>
+    </div>
+
     <script>
         // Initialize Cast Receiver
         const context = cast.framework.CastReceiverContext.getInstance();
@@ -135,16 +163,37 @@
         // Custom message namespace
         const NAMESPACE = 'urn:x-cast:com.justspin.hud';
 
+        function showLog(msg) {
+            const panel = document.getElementById('debug-panel');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = new Date().toLocaleTimeString() + ': ' + msg;
+            panel.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
         context.addCustomMessageListener(NAMESPACE, function(event) {
             console.log('Received message:', event.data);
-            const data = event.data;
+            showLog('Msg rcvd');
+            
+            let data = event.data;
+            if (typeof data === 'string') {
+                try {
+                    data = JSON.parse(data);
+                    showLog('JSON parsed');
+                } catch(e) {
+                    showLog('Parse fail: ' + e.message);
+                }
+            }
 
             if (data.type === 'UPDATE_HUD') {
+                showLog('HUD Update: ' + (data.songTitle || ''));
                 if (data.songTitle) document.getElementById('song-title').textContent = data.songTitle;
                 if (data.activityName) document.getElementById('activity-name').textContent = data.activityName;
                 if (data.timer) document.getElementById('timer').textContent = data.timer;
                 if (data.targetRpm) document.getElementById('target-rpm').textContent = data.targetRpm;
             } else if (data.type === 'LOAD_VIDEO') {
+                showLog('Load Video: ' + data.videoId);
                 loadVideo(data.videoId);
             }
         });
