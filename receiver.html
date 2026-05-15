@@ -143,6 +143,9 @@
     <script>
         const context = cast.framework.CastReceiverContext.getInstance();
         const NAMESPACE = 'urn:x-cast:test';
+        const options = new cast.framework.CastReceiverOptions();
+        options.customNamespaces = {};
+        options.customNamespaces[NAMESPACE] = cast.framework.MessageBus.MessageFormat.JSON;
         function showLog(msg) {
             const panel = document.getElementById('debug-panel');
             const entry = document.createElement('div');
@@ -174,7 +177,7 @@
                 showLog('Load Video: ' + data.videoId);
             }
         });
-        context.start();
+        context.start(options);
     </script>
 </body>
 </html>
