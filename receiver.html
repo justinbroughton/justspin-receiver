@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Justspin HUD Receiver</title>
     <script src="//www.gstatic.com/cast/sdk/libs/caf/receiver/v3/cast_receiver_framework.js"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
+    <title>Justspin HUD Receiver</title>
     <style>
         body {
             margin: 0;
@@ -158,7 +157,12 @@
         const NAMESPACE = 'urn:x-cast:test';
         const options = new cast.framework.CastReceiverOptions();
         options.customNamespaces = {};
-        options.customNamespaces[NAMESPACE] = cast.framework.MessageBus.MessageFormat.JSON;
+        try {
+            options.customNamespaces[NAMESPACE] = cast.framework.system.MessageType.JSON;
+        } catch (e) {
+            console.warn("MessageType JSON fallback", e);
+            options.customNamespaces[NAMESPACE] = 'JSON';
+        }
         let player = null;
         let isApiLoaded = false;
         function showLog(msg) {
@@ -170,6 +174,16 @@
                 panel.appendChild(entry);
                 panel.scrollTop = panel.scrollHeight;
             }
+        }
+        // Load YouTube IFrame API dynamically to avoid race conditions
+        try {
+            showLog('Initiating YouTube IFrame API load...');
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        } catch (e) {
+            showLog('Dynamic script load failed: ' + e.message);
         }
         // YouTube IFrame API callback
         window.onYouTubeIframeAPIReady = function() {
