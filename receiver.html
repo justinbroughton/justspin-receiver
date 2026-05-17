@@ -125,7 +125,7 @@
     </style>
 </head>
 <body>
-    <div id="youtube-player"></div>
+    <iframe id="youtube-player" src="about:blank"></iframe>
     <div id="hud-overlay">
         <div id="top-bar" class="glass-panel">
             <div id="song-info">
@@ -145,7 +145,7 @@
                 <div class="metric-value" id="current-rpm">--</div>
                 <div class="metric-label">Your RPM</div>
             </div>
-            <div id="status-msg">Connected to Justspin (Receiver v2.2.0)</div>
+            <div id="status-msg">Connected to Justspin (Receiver v3.0.0)</div>
         </div>
     </div>
     <div id="debug-panel">
@@ -175,7 +175,7 @@
                 panel.scrollTop = panel.scrollHeight;
             }
         }
-        showLog("Script loaded. Initializing Cast Receiver v2.2.0...");
+        showLog("Script loaded. Initializing Cast Receiver v3.0.0...");
         try {
             if (typeof cast === 'undefined' || typeof cast.framework === 'undefined') {
                 throw new Error("Google Cast SDK is not loaded! Check network, adblockers, or CSP.");
@@ -192,99 +192,37 @@
                 options.customNamespaces[NAMESPACE] = 'JSON';
                 showLog("Namespace registered with 'JSON' string fallback: " + e.message);
             }
-            let player = null;
-            let isApiLoaded = false;
-            let pendingVideoId = null;
-            let isInitializing = false;
-            // Load YouTube IFrame API dynamically and append to head
-            try {
-                showLog('Initiating YouTube IFrame API load...');
-                const tag = document.createElement('script');
-                tag.src = "https://www.youtube.com/iframe_api";
-                document.head.appendChild(tag);
-                showLog('YouTube API script element appended to head.');
-            } catch (e) {
-                showLog('Dynamic script load failed: ' + e.message);
-            }
-            // YouTube IFrame API callback
-            window.onYouTubeIframeAPIReady = function() {
-                showLog('YouTube API Loaded Successfully');
-                isApiLoaded = true;
-                if (pendingVideoId) {
-                    showLog('Loading pending queued video: ' + pendingVideoId);
-                    loadYoutubeVideo(pendingVideoId);
-                    pendingVideoId = null;
+            const iframe = document.getElementById('youtube-player');
+            function sendPlayerCommand(func, args = []) {
+                try {
+                    if (iframe && iframe.contentWindow) {
+                        const payload = {
+                            event: 'command',
+                            func: func,
+                            args: args
+                        };
+                        iframe.contentWindow.postMessage(JSON.stringify(payload), '*');
+                    }
+                } catch (e) {
+                    showLog('PostMessage err: ' + e.message);
                 }
-            };
+            }
             function loadYoutubeVideo(videoId) {
-                // Force load a 100% open, public, uncopyrighted test video with zero restrictions (Me at the zoo)
-                videoId = "jNQXAC9IVRw";
                 if (typeof videoId !== 'string') {
                     showLog('ERROR: videoId is ' + (typeof videoId) + ': ' + JSON.stringify(videoId));
                     return;
                 }
                 
                 videoId = videoId.trim();
-                showLog('Requested video: "' + videoId + '" (len: ' + videoId.length + ')');
-                if (typeof YT === 'undefined' || typeof YT.Player === 'undefined' || !isApiLoaded) {
-                    showLog('YouTube API not fully ready. Queuing video ID: ' + videoId);
-                    pendingVideoId = videoId;
-                    return;
-                }
-                if (player && typeof player.loadVideoById === 'function') {
-                    showLog('Loading via existing player');
-                    try {
-                        player.loadVideoById(videoId);
-                    } catch (e) {
-                        showLog('Load video err: ' + e.message);
-                    }
-                } else {
-                    if (isInitializing) {
-                        showLog('Player is already initializing. Queuing video ID: ' + videoId);
-                        pendingVideoId = videoId;
-                        return;
-                    }
-                    isInitializing = true;
-                    showLog('Creating new player instance');
-                    try {
-                        player = new YT.Player('youtube-player', {
-                            height: '100%',
-                            width: '100%',
-                            playerVars: {
-                                'autoplay': 1,
-                                'controls': 0,
-                                'disablekb': 1,
-                                'fs': 0,
-                                'rel': 0,
-                                'iv_load_policy': 3,
-                                'origin': window.location.origin
-                            },
-                            events: {
-                                'onReady': function(event) {
-                                    showLog('Player instance ready. Loading video: ' + videoId);
-                                    isInitializing = false;
-                                    event.target.mute();
-                                    try {
-                                        event.target.loadVideoById(videoId);
-                                    } catch(err) {
-                                        showLog('Inner load err: ' + err.message);
-                                    }
-                                    if (pendingVideoId) {
-                                        showLog('Loading pending queued video: ' + pendingVideoId);
-                                        loadYoutubeVideo(pendingVideoId);
-                                        pendingVideoId = null;
-                                    }
-                                },
-                                'onError': function(event) {
-                                    showLog('Player error: ' + event.data);
-                                    isInitializing = false;
-                                }
-                            }
-                        });
-                    } catch (e) {
-                        showLog('Create player err: ' + e.message);
-                        isInitializing = false;
-                    }
+                showLog('Loading video: "' + videoId + '"');
+                const embedUrl = "https://www.youtube.com/embed/" + videoId + 
+                                 "?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&fs=0&rel=0&iv_load_policy=3" +
+                                 "&origin=" + encodeURIComponent(window.location.origin);
+                try {
+                    iframe.src = embedUrl;
+                    showLog('Iframe source updated.');
+                } catch (e) {
+                    showLog('Iframe load err: ' + e.message);
                 }
             }
             context.addCustomMessageListener(NAMESPACE, function(event) {
@@ -305,43 +243,26 @@
                     if (data.activityName) document.getElementById('activity-name').textContent = data.activityName;
                     if (data.timer) document.getElementById('timer').textContent = data.timer;
                     if (data.targetRpm) document.getElementById('target-rpm').textContent = data.targetRpm;
-                    // Sync YouTube player play state and current elapsed seconds
-                    if (player && typeof player.getPlayerState === 'function') {
-                        try {
-                            const playerState = player.getPlayerState();
-                            if (data.isRunning && playerState !== YT.PlayerState.PLAYING) {
-                                player.playVideo();
-                            } else if (!data.isRunning && playerState === YT.PlayerState.PLAYING) {
-                                player.pauseVideo();
-                            }
-                            if (data.elapsedSeconds !== undefined) {
-                                const tvSecs = player.getCurrentTime();
-                                if (Math.abs(tvSecs - data.elapsedSeconds) > 2) {
-                                    showLog('Sync alignment drift: ' + Math.round(tvSecs) + 's -> ' + data.elapsedSeconds + 's');
-                                    player.seekTo(data.elapsedSeconds, true);
-                                }
-                            }
-                        } catch (e) {
-                            showLog('Sync state err: ' + e.message);
-                        }
+                    // Sync play/pause state
+                    if (data.isRunning) {
+                        sendPlayerCommand('playVideo');
+                    } else {
+                        sendPlayerCommand('pauseVideo');
+                    }
+                    if (data.elapsedSeconds !== undefined) {
+                        sendPlayerCommand('seekTo', [data.elapsedSeconds, true]);
                     }
                 } else if (data.type === 'LOAD_VIDEO') {
                     loadYoutubeVideo(data.videoId);
                 } else if (data.type === 'PLAY') {
                     showLog('Play command received');
-                    if (player && typeof player.playVideo === 'function') {
-                        player.playVideo();
-                    }
+                    sendPlayerCommand('playVideo');
                 } else if (data.type === 'PAUSE') {
                     showLog('Pause command received');
-                    if (player && typeof player.pauseVideo === 'function') {
-                        player.pauseVideo();
-                    }
+                    sendPlayerCommand('pauseVideo');
                 } else if (data.type === 'SEEK') {
                     showLog('Seek command received: ' + data.position);
-                    if (player && typeof player.seekTo === 'function') {
-                        player.seekTo(data.position, true);
-                    }
+                    sendPlayerCommand('seekTo', [data.position, true]);
                 }
             });
             context.start(options);
