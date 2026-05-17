@@ -145,7 +145,7 @@
                 <div class="metric-value" id="current-rpm">--</div>
                 <div class="metric-label">Your RPM</div>
             </div>
-            <div id="status-msg">Connected to Justspin (Receiver v1.8.0)</div>
+            <div id="status-msg">Connected to Justspin (Receiver v1.9.0)</div>
         </div>
     </div>
     <div id="debug-panel">
@@ -175,7 +175,7 @@
                 panel.scrollTop = panel.scrollHeight;
             }
         }
-        showLog("Script loaded. Initializing Cast Receiver v1.8.0...");
+        showLog("Script loaded. Initializing Cast Receiver v1.9.0...");
         try {
             if (typeof cast === 'undefined' || typeof cast.framework === 'undefined') {
                 throw new Error("Google Cast SDK is not loaded! Check network, adblockers, or CSP.");
@@ -244,7 +244,6 @@
                         player = new YT.Player('youtube-player', {
                             height: '100%',
                             width: '100%',
-                            videoId: videoId,
                             playerVars: {
                                 'autoplay': 1,
                                 'controls': 0,
@@ -256,9 +255,16 @@
                             },
                             events: {
                                 'onReady': function(event) {
-                                    showLog('Player instance ready');
+                                    showLog('Player instance ready. Loading video: ' + videoId);
                                     event.target.mute();
-                                    event.target.playVideo();
+                                    try {
+                                        event.target.loadVideoById({
+                                            videoId: videoId,
+                                            suggestedQuality: 'default'
+                                        });
+                                    } catch(err) {
+                                        showLog('Inner load err: ' + err.message);
+                                    }
                                 },
                                 'onError': function(event) {
                                     showLog('Player error: ' + event.data);
