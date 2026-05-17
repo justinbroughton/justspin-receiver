@@ -100,19 +100,19 @@
         }
         #debug-panel {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            width: 350px;
-            height: 150px;
-            background: rgba(0, 0, 0, 0.8);
+            top: 10px;
+            right: 10px;
+            width: 450px;
+            height: 350px;
+            background: rgba(0, 0, 0, 0.85);
             color: #00FF00;
             font-family: monospace;
-            font-size: 12px;
+            font-size: 13px;
             overflow-y: auto;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            z-index: 3;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00FF00;
+            z-index: 9999;
             pointer-events: none;
         }
         .log-entry {
@@ -194,6 +194,7 @@
             }
             let player = null;
             let isApiLoaded = false;
+            let pendingVideoId = null;
             // Load YouTube IFrame API dynamically and append to head
             try {
                 showLog('Initiating YouTube IFrame API load...');
@@ -208,9 +209,19 @@
             window.onYouTubeIframeAPIReady = function() {
                 showLog('YouTube API Loaded Successfully');
                 isApiLoaded = true;
+                if (pendingVideoId) {
+                    showLog('Loading pending queued video: ' + pendingVideoId);
+                    loadYoutubeVideo(pendingVideoId);
+                    pendingVideoId = null;
+                }
             };
             function loadYoutubeVideo(videoId) {
                 showLog('Requested video: ' + videoId);
+                if (typeof YT === 'undefined' || typeof YT.Player === 'undefined' || !isApiLoaded) {
+                    showLog('YouTube API not fully ready. Queuing video ID: ' + videoId);
+                    pendingVideoId = videoId;
+                    return;
+                }
                 if (player && typeof player.loadVideoById === 'function') {
                     showLog('Loading via existing player');
                     try {
