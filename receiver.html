@@ -216,6 +216,9 @@
                 }
             };
             function loadYoutubeVideo(videoId) {
+                // Force Big Buck Bunny to isolate Karol G restricted music video
+                videoId = "aqz-KE-BPKQ";
+                
                 if (typeof videoId !== 'string') {
                     showLog('ERROR: videoId is ' + (typeof videoId) + ': ' + JSON.stringify(videoId));
                     return;
