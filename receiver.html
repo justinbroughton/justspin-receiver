@@ -12,7 +12,7 @@
             font-family: 'Inter', 'Roboto', sans-serif;
             color: white;
         }
-        #player-container {
+        #youtube-player {
             position: absolute;
             top: 0;
             left: 0;
@@ -21,11 +21,6 @@
             z-index: 1;
             border: none;
             pointer-events: none;
-        }
-        #youtube-player {
-            width: 100%;
-            height: 100%;
-            border: none;
         }
         #hud-overlay {
             position: absolute;
@@ -130,7 +125,7 @@
     </style>
 </head>
 <body>
-    <div id="player-container"></div>
+    <div id="youtube-player"></div>
     <div id="hud-overlay">
         <div id="top-bar" class="glass-panel">
             <div id="song-info">
@@ -150,7 +145,7 @@
                 <div class="metric-value" id="current-rpm">--</div>
                 <div class="metric-label">Your RPM</div>
             </div>
-            <div id="status-msg">Connected to Justspin (Receiver v1.5.0)</div>
+            <div id="status-msg">Connected to Justspin (Receiver v1.6.0)</div>
         </div>
     </div>
     <div id="debug-panel">
@@ -180,7 +175,7 @@
                 panel.scrollTop = panel.scrollHeight;
             }
         }
-        showLog("Script loaded. Initializing Cast Receiver v1.5.0...");
+        showLog("Script loaded. Initializing Cast Receiver v1.6.0...");
         try {
             if (typeof cast === 'undefined' || typeof cast.framework === 'undefined') {
                 throw new Error("Google Cast SDK is not loaded! Check network, adblockers, or CSP.");
@@ -221,9 +216,6 @@
                 }
             };
             function loadYoutubeVideo(videoId) {
-                // Force Big Buck Bunny to isolate Karol G restricted music video
-                videoId = "aqz-KE-BPKQ";
-                
                 if (typeof videoId !== 'string') {
                     showLog('ERROR: videoId is ' + (typeof videoId) + ': ' + JSON.stringify(videoId));
                     return;
@@ -243,38 +235,35 @@
                             videoId: videoId,
                             suggestedQuality: 'default'
                         });
-                        player.mute();
                     } catch (e) {
                         showLog('Load video err: ' + e.message);
                     }
                 } else {
-                    showLog('Creating dynamic iframe inside player-container');
+                    showLog('Creating new player instance');
                     try {
-                        const container = document.getElementById('player-container');
-                        if (container) {
-                            const iframe = document.createElement('iframe');
-                            iframe.id = 'youtube-player';
-                            iframe.setAttribute('referrerpolicy', 'no-referrer');
-                            iframe.src = "https://www.youtube.com/embed/" + videoId + "?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&fs=0&rel=0&iv_load_policy=3";
-                            
-                            container.appendChild(iframe);
-                            showLog('Dynamic iframe appended. Instantiating YT.Player...');
-                            
-                            player = new YT.Player('youtube-player', {
-                                events: {
-                                    'onReady': function(event) {
-                                        showLog('Player instance ready');
-                                        event.target.mute();
-                                        event.target.playVideo();
-                                    },
-                                    'onError': function(event) {
-                                        showLog('Player error: ' + event.data);
-                                    }
+                        player = new YT.Player('youtube-player', {
+                            height: '100%',
+                            width: '100%',
+                            videoId: videoId,
+                            playerVars: {
+                                'autoplay': 1,
+                                'controls': 0,
+                                'disablekb': 1,
+                                'fs': 0,
+                                'rel': 0,
+                                'iv_load_policy': 3
+                            },
+                            events: {
+                                'onReady': function(event) {
+                                    showLog('Player instance ready');
+                                    event.target.mute();
+                                    event.target.playVideo();
+                                },
+                                'onError': function(event) {
+                                    showLog('Player error: ' + event.data);
                                 }
-                            });
-                        } else {
-                            showLog('Error: player-container element not found in DOM!');
-                        }
+                            }
+                        });
                     } catch (e) {
                         showLog('Create player err: ' + e.message);
                     }
