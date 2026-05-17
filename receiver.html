@@ -145,7 +145,7 @@
                 <div class="metric-value" id="current-rpm">--</div>
                 <div class="metric-label">Your RPM</div>
             </div>
-            <div id="status-msg">Connected to Justspin</div>
+            <div id="status-msg">Connected to Justspin (Receiver v1.3.0)</div>
         </div>
     </div>
     <div id="debug-panel">
@@ -175,7 +175,7 @@
                 panel.scrollTop = panel.scrollHeight;
             }
         }
-        showLog("Script loaded. Initializing Cast Receiver...");
+        showLog("Script loaded. Initializing Cast Receiver v1.3.0...");
         try {
             if (typeof cast === 'undefined' || typeof cast.framework === 'undefined') {
                 throw new Error("Google Cast SDK is not loaded! Check network, adblockers, or CSP.");
