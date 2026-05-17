@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Justspin HUD Receiver (Minimal)</title>
+    <title>Justspin HUD Receiver</title>
     <script src="//www.gstatic.com/cast/sdk/libs/caf/receiver/v3/cast_receiver_framework.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         body {
             margin: 0;
@@ -11,6 +12,16 @@
             background-color: black;
             font-family: 'Inter', 'Roboto', sans-serif;
             color: white;
+        }
+        #youtube-player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            border: none;
+            pointer-events: none;
         }
         #hud-overlay {
             position: absolute;
@@ -115,6 +126,7 @@
     </style>
 </head>
 <body>
+    <div id="youtube-player"></div>
     <div id="hud-overlay">
         <div id="top-bar" class="glass-panel">
             <div id="song-info">
@@ -147,13 +159,69 @@
         const options = new cast.framework.CastReceiverOptions();
         options.customNamespaces = {};
         options.customNamespaces[NAMESPACE] = cast.framework.MessageBus.MessageFormat.JSON;
+        let player = null;
+        let isApiLoaded = false;
         function showLog(msg) {
             const panel = document.getElementById('debug-panel');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.textContent = new Date().toLocaleTimeString() + ': ' + msg;
-            panel.appendChild(entry);
-            panel.scrollTop = panel.scrollHeight;
+            if (panel) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.textContent = new Date().toLocaleTimeString() + ': ' + msg;
+                panel.appendChild(entry);
+                panel.scrollTop = panel.scrollHeight;
+            }
+        }
+        // YouTube IFrame API callback
+        window.onYouTubeIframeAPIReady = function() {
+            showLog('YouTube API Loaded Successfully');
+            isApiLoaded = true;
+        };
+        function loadYoutubeVideo(videoId) {
+            showLog('Requested video: ' + videoId);
+            if (player && typeof player.loadVideoById === 'function') {
+                showLog('Loading via existing player');
+                try {
+                    player.loadVideoById({
+                        videoId: videoId,
+                        suggestedQuality: 'default'
+                    });
+                    player.mute();
+                } catch (e) {
+                    showLog('Load video err: ' + e.message);
+                }
+            } else {
+                showLog('Creating new player instance');
+                try {
+                    player = new YT.Player('youtube-player', {
+                        height: '100%',
+                        width: '100%',
+                        videoId: videoId,
+                        playerVars: {
+                            'autoplay': 1,
+                            'controls': 0,
+                            'disablekb': 1,
+                            'fs': 0,
+                            'modestbranding': 1,
+                            'rel': 0,
+                            'showinfo': 0,
+                            'mute': 1,
+                            'iv_load_policy': 3
+                        },
+                        events: {
+                            'onReady': function(event) {
+                                showLog('Player instance ready');
+                                event.target.mute();
+                                event.target.playVideo();
+                            },
+                            'onError': function(event) {
+                                showLog('Player error: ' + event.data);
+                            }
+                        }
+                    });
+                } catch (e) {
+                    showLog('Create player err: ' + e.message);
+                }
+            }
         }
         context.addCustomMessageListener(NAMESPACE, function(event) {
             console.log('Received message:', event.data);
@@ -163,19 +231,53 @@
             if (typeof data === 'string') {
                 try {
                     data = JSON.parse(data);
-                    showLog('JSON parsed');
                 } catch(e) {
                     showLog('Parse fail: ' + e.message);
+                    return;
                 }
             }
             if (data.type === 'UPDATE_HUD') {
-                showLog('HUD Update: ' + (data.songTitle || ''));
                 if (data.songTitle) document.getElementById('song-title').textContent = data.songTitle;
                 if (data.activityName) document.getElementById('activity-name').textContent = data.activityName;
                 if (data.timer) document.getElementById('timer').textContent = data.timer;
                 if (data.targetRpm) document.getElementById('target-rpm').textContent = data.targetRpm;
+                // Sync YouTube player play state and current elapsed seconds
+                if (player && typeof player.getPlayerState === 'function') {
+                    try {
+                        const playerState = player.getPlayerState();
+                        if (data.isRunning && playerState !== YT.PlayerState.PLAYING) {
+                            player.playVideo();
+                        } else if (!data.isRunning && playerState === YT.PlayerState.PLAYING) {
+                            player.pauseVideo();
+                        }
+                        if (data.elapsedSeconds !== undefined) {
+                            const tvSecs = player.getCurrentTime();
+                            if (Math.abs(tvSecs - data.elapsedSeconds) > 2) {
+                                showLog('Sync alignment drift: ' + Math.round(tvSecs) + 's -> ' + data.elapsedSeconds + 's');
+                                player.seekTo(data.elapsedSeconds, true);
+                            }
+                        }
+                    } catch (e) {
+                        showLog('Sync state err: ' + e.message);
+                    }
+                }
             } else if (data.type === 'LOAD_VIDEO') {
-                showLog('Load Video: ' + data.videoId);
+                loadYoutubeVideo(data.videoId);
+            } else if (data.type === 'PLAY') {
+                showLog('Play command received');
+                if (player && typeof player.playVideo === 'function') {
+                    player.playVideo();
+                }
+            } else if (data.type === 'PAUSE') {
+                showLog('Pause command received');
+                if (player && typeof player.pauseVideo === 'function') {
+                    player.pauseVideo();
+                }
+            } else if (data.type === 'SEEK') {
+                showLog('Seek command received: ' + data.position);
+                if (player && typeof player.seekTo === 'function') {
+                    player.seekTo(data.position, true);
+                }
             }
         });
         context.start(options);
