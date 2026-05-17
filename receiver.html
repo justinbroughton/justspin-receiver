@@ -176,145 +176,148 @@
             }
         }
         showLog("Script loaded. Initializing Cast Receiver...");
-        let context = null;
         try {
-            context = cast.framework.CastReceiverContext.getInstance();
+            if (typeof cast === 'undefined' || typeof cast.framework === 'undefined') {
+                throw new Error("Google Cast SDK is not loaded! Check network, adblockers, or CSP.");
+            }
+            const context = cast.framework.CastReceiverContext.getInstance();
             showLog("Cast Receiver Context retrieved.");
-        } catch (e) {
-            showLog("FATAL: Failed to get CastReceiverContext. Is SDK loaded? " + e.message);
-        }
-        const NAMESPACE = 'urn:x-cast:test';
-        const options = new cast.framework.CastReceiverOptions();
-        options.customNamespaces = {};
-        try {
-            options.customNamespaces[NAMESPACE] = cast.framework.system.MessageType.JSON;
-            showLog("Namespace registered with framework MessageType.JSON.");
-        } catch (e) {
-            options.customNamespaces[NAMESPACE] = 'JSON';
-            showLog("Namespace registered with 'JSON' string fallback: " + e.message);
-        }
-        let player = null;
-        let isApiLoaded = false;
-        // Load YouTube IFrame API dynamically to avoid race conditions
-        try {
-            showLog('Initiating YouTube IFrame API load...');
-            const tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            const firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-        } catch (e) {
-            showLog('Dynamic script load failed: ' + e.message);
-        }
-        // YouTube IFrame API callback
-        window.onYouTubeIframeAPIReady = function() {
-            showLog('YouTube API Loaded Successfully');
-            isApiLoaded = true;
-        };
-        function loadYoutubeVideo(videoId) {
-            showLog('Requested video: ' + videoId);
-            if (player && typeof player.loadVideoById === 'function') {
-                showLog('Loading via existing player');
-                try {
-                    player.loadVideoById({
-                        videoId: videoId,
-                        suggestedQuality: 'default'
-                    });
-                    player.mute();
-                } catch (e) {
-                    showLog('Load video err: ' + e.message);
-                }
-            } else {
-                showLog('Creating new player instance');
-                try {
-                    player = new YT.Player('youtube-player', {
-                        height: '100%',
-                        width: '100%',
-                        videoId: videoId,
-                        playerVars: {
-                            'autoplay': 1,
-                            'controls': 0,
-                            'disablekb': 1,
-                            'fs': 0,
-                            'modestbranding': 1,
-                            'rel': 0,
-                            'showinfo': 0,
-                            'mute': 1,
-                            'iv_load_policy': 3
-                        },
-                        events: {
-                            'onReady': function(event) {
-                                showLog('Player instance ready');
-                                event.target.mute();
-                                event.target.playVideo();
-                            },
-                            'onError': function(event) {
-                                showLog('Player error: ' + event.data);
-                            }
-                        }
-                    });
-                } catch (e) {
-                    showLog('Create player err: ' + e.message);
-                }
+            const NAMESPACE = 'urn:x-cast:test';
+            const options = new cast.framework.CastReceiverOptions();
+            options.customNamespaces = {};
+            try {
+                options.customNamespaces[NAMESPACE] = cast.framework.system.MessageType.JSON;
+                showLog("Namespace registered with framework MessageType.JSON.");
+            } catch (e) {
+                options.customNamespaces[NAMESPACE] = 'JSON';
+                showLog("Namespace registered with 'JSON' string fallback: " + e.message);
             }
-        }
-        context.addCustomMessageListener(NAMESPACE, function(event) {
-            console.log('Received message:', event.data);
-            showLog('Msg rcvd');
-            
-            let data = event.data;
-            if (typeof data === 'string') {
-                try {
-                    data = JSON.parse(data);
-                } catch(e) {
-                    showLog('Parse fail: ' + e.message);
-                    return;
-                }
+            let player = null;
+            let isApiLoaded = false;
+            // Load YouTube IFrame API dynamically and append to head
+            try {
+                showLog('Initiating YouTube IFrame API load...');
+                const tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                document.head.appendChild(tag);
+                showLog('YouTube API script element appended to head.');
+            } catch (e) {
+                showLog('Dynamic script load failed: ' + e.message);
             }
-            if (data.type === 'UPDATE_HUD') {
-                if (data.songTitle) document.getElementById('song-title').textContent = data.songTitle;
-                if (data.activityName) document.getElementById('activity-name').textContent = data.activityName;
-                if (data.timer) document.getElementById('timer').textContent = data.timer;
-                if (data.targetRpm) document.getElementById('target-rpm').textContent = data.targetRpm;
-                // Sync YouTube player play state and current elapsed seconds
-                if (player && typeof player.getPlayerState === 'function') {
+            // YouTube IFrame API callback
+            window.onYouTubeIframeAPIReady = function() {
+                showLog('YouTube API Loaded Successfully');
+                isApiLoaded = true;
+            };
+            function loadYoutubeVideo(videoId) {
+                showLog('Requested video: ' + videoId);
+                if (player && typeof player.loadVideoById === 'function') {
+                    showLog('Loading via existing player');
                     try {
-                        const playerState = player.getPlayerState();
-                        if (data.isRunning && playerState !== YT.PlayerState.PLAYING) {
-                            player.playVideo();
-                        } else if (!data.isRunning && playerState === YT.PlayerState.PLAYING) {
-                            player.pauseVideo();
-                        }
-                        if (data.elapsedSeconds !== undefined) {
-                            const tvSecs = player.getCurrentTime();
-                            if (Math.abs(tvSecs - data.elapsedSeconds) > 2) {
-                                showLog('Sync alignment drift: ' + Math.round(tvSecs) + 's -> ' + data.elapsedSeconds + 's');
-                                player.seekTo(data.elapsedSeconds, true);
-                            }
-                        }
+                        player.loadVideoById({
+                            videoId: videoId,
+                            suggestedQuality: 'default'
+                        });
+                        player.mute();
                     } catch (e) {
-                        showLog('Sync state err: ' + e.message);
+                        showLog('Load video err: ' + e.message);
+                    }
+                } else {
+                    showLog('Creating new player instance');
+                    try {
+                        player = new YT.Player('youtube-player', {
+                            height: '100%',
+                            width: '100%',
+                            videoId: videoId,
+                            playerVars: {
+                                'autoplay': 1,
+                                'controls': 0,
+                                'disablekb': 1,
+                                'fs': 0,
+                                'modestbranding': 1,
+                                'rel': 0,
+                                'showinfo': 0,
+                                'mute': 1,
+                                'iv_load_policy': 3
+                            },
+                            events: {
+                                'onReady': function(event) {
+                                    showLog('Player instance ready');
+                                    event.target.mute();
+                                    event.target.playVideo();
+                                },
+                                'onError': function(event) {
+                                    showLog('Player error: ' + event.data);
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        showLog('Create player err: ' + e.message);
                     }
                 }
-            } else if (data.type === 'LOAD_VIDEO') {
-                loadYoutubeVideo(data.videoId);
-            } else if (data.type === 'PLAY') {
-                showLog('Play command received');
-                if (player && typeof player.playVideo === 'function') {
-                    player.playVideo();
-                }
-            } else if (data.type === 'PAUSE') {
-                showLog('Pause command received');
-                if (player && typeof player.pauseVideo === 'function') {
-                    player.pauseVideo();
-                }
-            } else if (data.type === 'SEEK') {
-                showLog('Seek command received: ' + data.position);
-                if (player && typeof player.seekTo === 'function') {
-                    player.seekTo(data.position, true);
-                }
             }
-        });
-        context.start(options);
+            context.addCustomMessageListener(NAMESPACE, function(event) {
+                console.log('Received message:', event.data);
+                showLog('Msg rcvd');
+                
+                let data = event.data;
+                if (typeof data === 'string') {
+                    try {
+                        data = JSON.parse(data);
+                    } catch(e) {
+                        showLog('Parse fail: ' + e.message);
+                        return;
+                    }
+                }
+                if (data.type === 'UPDATE_HUD') {
+                    if (data.songTitle) document.getElementById('song-title').textContent = data.songTitle;
+                    if (data.activityName) document.getElementById('activity-name').textContent = data.activityName;
+                    if (data.timer) document.getElementById('timer').textContent = data.timer;
+                    if (data.targetRpm) document.getElementById('target-rpm').textContent = data.targetRpm;
+                    // Sync YouTube player play state and current elapsed seconds
+                    if (player && typeof player.getPlayerState === 'function') {
+                        try {
+                            const playerState = player.getPlayerState();
+                            if (data.isRunning && playerState !== YT.PlayerState.PLAYING) {
+                                player.playVideo();
+                            } else if (!data.isRunning && playerState === YT.PlayerState.PLAYING) {
+                                player.pauseVideo();
+                            }
+                            if (data.elapsedSeconds !== undefined) {
+                                const tvSecs = player.getCurrentTime();
+                                if (Math.abs(tvSecs - data.elapsedSeconds) > 2) {
+                                    showLog('Sync alignment drift: ' + Math.round(tvSecs) + 's -> ' + data.elapsedSeconds + 's');
+                                    player.seekTo(data.elapsedSeconds, true);
+                                }
+                            }
+                        } catch (e) {
+                            showLog('Sync state err: ' + e.message);
+                        }
+                    }
+                } else if (data.type === 'LOAD_VIDEO') {
+                    loadYoutubeVideo(data.videoId);
+                } else if (data.type === 'PLAY') {
+                    showLog('Play command received');
+                    if (player && typeof player.playVideo === 'function') {
+                        player.playVideo();
+                    }
+                } else if (data.type === 'PAUSE') {
+                    showLog('Pause command received');
+                    if (player && typeof player.pauseVideo === 'function') {
+                        player.pauseVideo();
+                    }
+                } else if (data.type === 'SEEK') {
+                    showLog('Seek command received: ' + data.position);
+                    if (player && typeof player.seekTo === 'function') {
+                        player.seekTo(data.position, true);
+                    }
+                }
+            });
+            context.start(options);
+            showLog("Cast Receiver Context started successfully!");
+        } catch (globalError) {
+            showLog("FATAL INIT CRASH: " + globalError.message);
+        }
     </script>
 </body>
 </html>
