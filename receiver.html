@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="//www.gstatic.com/cast/sdk/libs/caf/receiver/v3/cast_receiver_framework.js"></script>
+    <script src="https://www.gstatic.com/cast/sdk/libs/caf/receiver/v3/cast_receiver_framework.js"></script>
     <title>Justspin HUD Receiver</title>
     <style>
         body {
@@ -152,19 +152,19 @@
         <div class="log-entry">Debug Log Started...</div>
     </div>
     <script>
-        const context = cast.framework.CastReceiverContext.getInstance();
-        console.log("Receiver Script Loaded!");
-        const NAMESPACE = 'urn:x-cast:test';
-        const options = new cast.framework.CastReceiverOptions();
-        options.customNamespaces = {};
-        try {
-            options.customNamespaces[NAMESPACE] = cast.framework.system.MessageType.JSON;
-        } catch (e) {
-            console.warn("MessageType JSON fallback", e);
-            options.customNamespaces[NAMESPACE] = 'JSON';
-        }
-        let player = null;
-        let isApiLoaded = false;
+        // Register global error catcher immediately to output diagnostics on TV screen
+        window.onerror = function(message, source, lineno, colno, error) {
+            const panel = document.getElementById('debug-panel');
+            if (panel) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.style.color = '#FF3D00';
+                entry.textContent = 'CRASH: ' + message + ' at L' + lineno;
+                panel.appendChild(entry);
+                panel.scrollTop = panel.scrollHeight;
+            }
+            return false;
+        };
         function showLog(msg) {
             const panel = document.getElementById('debug-panel');
             if (panel) {
@@ -175,6 +175,26 @@
                 panel.scrollTop = panel.scrollHeight;
             }
         }
+        showLog("Script loaded. Initializing Cast Receiver...");
+        let context = null;
+        try {
+            context = cast.framework.CastReceiverContext.getInstance();
+            showLog("Cast Receiver Context retrieved.");
+        } catch (e) {
+            showLog("FATAL: Failed to get CastReceiverContext. Is SDK loaded? " + e.message);
+        }
+        const NAMESPACE = 'urn:x-cast:test';
+        const options = new cast.framework.CastReceiverOptions();
+        options.customNamespaces = {};
+        try {
+            options.customNamespaces[NAMESPACE] = cast.framework.system.MessageType.JSON;
+            showLog("Namespace registered with framework MessageType.JSON.");
+        } catch (e) {
+            options.customNamespaces[NAMESPACE] = 'JSON';
+            showLog("Namespace registered with 'JSON' string fallback: " + e.message);
+        }
+        let player = null;
+        let isApiLoaded = false;
         // Load YouTube IFrame API dynamically to avoid race conditions
         try {
             showLog('Initiating YouTube IFrame API load...');
