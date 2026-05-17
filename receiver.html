@@ -9,6 +9,17 @@
             padding: 0;
             overflow: hidden;
             background-color: black;
+            font-family: 'Inter', 'Roboto', sans-serif;<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <title>Justspin HUD Receiver</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: black;
             font-family: 'Inter', 'Roboto', sans-serif;
             color: white;
         }
@@ -125,7 +136,7 @@
     </style>
 </head>
 <body>
-    <div id="youtube-player"></div>
+    <iframe id="youtube-player" referrerpolicy="no-referrer"></iframe>
     <div id="hud-overlay">
         <div id="top-bar" class="glass-panel">
             <div id="song-info">
@@ -145,7 +156,7 @@
                 <div class="metric-value" id="current-rpm">--</div>
                 <div class="metric-label">Your RPM</div>
             </div>
-            <div id="status-msg">Connected to Justspin (Receiver v1.3.0)</div>
+            <div id="status-msg">Connected to Justspin (Receiver v1.4.0)</div>
         </div>
     </div>
     <div id="debug-panel">
@@ -175,7 +186,7 @@
                 panel.scrollTop = panel.scrollHeight;
             }
         }
-        showLog("Script loaded. Initializing Cast Receiver v1.3.0...");
+        showLog("Script loaded. Initializing Cast Receiver v1.4.0...");
         try {
             if (typeof cast === 'undefined' || typeof cast.framework === 'undefined') {
                 throw new Error("Google Cast SDK is not loaded! Check network, adblockers, or CSP.");
@@ -243,31 +254,353 @@
                         showLog('Load video err: ' + e.message);
                     }
                 } else {
-                    showLog('Creating new player instance');
+                    showLog('Creating new player instance on existing iframe');
                     try {
-                        player = new YT.Player('youtube-player', {
-                            height: '100%',
-                            width: '100%',
-                            videoId: videoId,
-                            playerVars: {
-                                'autoplay': 1,
-                                'controls': 0,
-                                'disablekb': 1,
-                                'fs': 0,
-                                'rel': 0,
-                                'iv_load_policy': 3
-                            },
-                            events: {
-                                'onReady': function(event) {
-                                    showLog('Player instance ready');
-                                    event.target.mute();
-                                    event.target.playVideo();
-                                },
-                                'onError': function(event) {
-                                    showLog('Player error: ' + event.data);
+                        const iframe = document.getElementById('youtube-player');
+                        if (iframe) {
+                            iframe.src = "https://www.youtube.com/embed/" + videoId + "?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&fs=0&rel=0&iv_load_policy=3";
+                            showLog('Iframe src set, instantiating YT.Player...');
+                            
+                            player = new YT.Player('youtube-player', {
+                                events: {
+                                    'onReady': function(event) {
+                                        showLog('Player instance ready');
+                                        event.target.mute();
+                                        event.target.playVideo();
+                                    },
+                                    'onError': function(event) {
+                                        showLog('Player error: ' + event.data);
+                                    }
+                                }
+                            });
+                        } else {
+                            showLog('Error: youtube-player iframe not found in DOM!');
+                        }
+                    } catch (e) {
+                        showLog('Create player err: ' + e.message);
+                    }
+                }
+            }
+            context.addCustomMessageListener(NAMESPACE, function(event) {
+                console.log('Received message:', event.data);
+                showLog('Msg rcvd');
+                
+                let data = event.data;
+                if (typeof data === 'string') {
+                    try {
+                        data = JSON.parse(data);
+                    } catch(e) {
+                        showLog('Parse fail: ' + e.message);
+                        return;
+                    }
+                }
+                if (data.type === 'UPDATE_HUD') {
+                    if (data.songTitle) document.getElementById('song-title').textContent = data.songTitle;
+                    if (data.activityName) document.getElementById('activity-name').textContent = data.activityName;
+                    if (data.timer) document.getElementById('timer').textContent = data.timer;
+                    if (data.targetRpm) document.getElementById('target-rpm').textContent = data.targetRpm;
+                    // Sync YouTube player play state and current elapsed seconds
+                    if (player && typeof player.getPlayerState === 'function') {
+                        try {
+                            const playerState = player.getPlayerState();
+                            if (data.isRunning && playerState !== YT.PlayerState.PLAYING) {
+                                player.playVideo();
+                            } else if (!data.isRunning && playerState === YT.PlayerState.PLAYING) {
+                                player.pauseVideo();
+                            }
+                            if (data.elapsedSeconds !== undefined) {
+                                const tvSecs = player.getCurrentTime();
+                                if (Math.abs(tvSecs - data.elapsedSeconds) > 2) {
+                                    showLog('Sync alignment drift: ' + Math.round(tvSecs) + 's -> ' + data.elapsedSeconds + 's');
+                                    player.seekTo(data.elapsedSeconds, true);
                                 }
                             }
+                        } catch (e) {
+                            showLog('Sync state err: ' + e.message);
+                        }
+                    }
+                } else if (data.type === 'LOAD_VIDEO') {
+                    loadYoutubeVideo(data.videoId);
+                } else if (data.type === 'PLAY') {
+                    showLog('Play command received');
+                    if (player && typeof player.playVideo === 'function') {
+                        player.playVideo();
+                    }
+                } else if (data.type === 'PAUSE') {
+                    showLog('Pause command received');
+                    if (player && typeof player.pauseVideo === 'function') {
+                        player.pauseVideo();
+                    }
+                } else if (data.type === 'SEEK') {
+                    showLog('Seek command received: ' + data.position);
+                    if (player && typeof player.seekTo === 'function') {
+                        player.seekTo(data.position, true);
+                    }
+                }
+            });
+            context.start(options);
+            showLog("Cast Receiver Context started successfully!");
+        } catch (globalError) {
+            showLog("FATAL INIT CRASH: " + globalError.message);
+        }
+    </script>
+</body>
+</html>
+            color: white;
+        }
+        #youtube-player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            border: none;
+            pointer-events: none;
+        }
+        #hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        .glass-panel {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        #song-info {
+            font-size: 24px;
+            font-weight: 500;
+        }
+        #song-title {
+            color: #00E676;
+            font-weight: 700;
+        }
+        #activity-container {
+            align-self: center;
+            margin-top: 20vh;
+            text-align: center;
+            min-width: 400px;
+        }
+        #activity-name {
+            font-size: 64px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        #timer {
+            font-size: 120px;
+            font-weight: 900;
+            font-family: monospace;
+            color: #FF5252;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        #bottom-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        .metric {
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 48px;
+            font-weight: 900;
+            color: #40C4FF;
+        }
+        .metric-label {
+            font-size: 16px;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: #B0BEC5;
+        }
+        #debug-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 450px;
+            height: 350px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #00FF00;
+            font-family: monospace;
+            font-size: 13px;
+            overflow-y: auto;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00FF00;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <iframe id="youtube-player" referrerpolicy="no-referrer"></iframe>
+    <div id="hud-overlay">
+        <div id="top-bar" class="glass-panel">
+            <div id="song-info">
+                Playing: <span id="song-title">Waiting for song...</span>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="target-rpm">--</div>
+                <div class="metric-label">Target RPM</div>
+            </div>
+        </div>
+        <div id="activity-container" class="glass-panel">
+            <div id="activity-name">GET READY</div>
+            <div id="timer">00:00</div>
+        </div>
+        <div id="bottom-bar" class="glass-panel">
+            <div class="metric">
+                <div class="metric-value" id="current-rpm">--</div>
+                <div class="metric-label">Your RPM</div>
+            </div>
+            <div id="status-msg">Connected to Justspin (Receiver v1.4.0)</div>
+        </div>
+    </div>
+    <div id="debug-panel">
+        <div class="log-entry">Debug Log Started...</div>
+    </div>
+    <script>
+        // Register global error catcher immediately to output diagnostics on TV screen
+        window.onerror = function(message, source, lineno, colno, error) {
+            const panel = document.getElementById('debug-panel');
+            if (panel) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.style.color = '#FF3D00';
+                entry.textContent = 'CRASH: ' + message + ' at L' + lineno;
+                panel.appendChild(entry);
+                panel.scrollTop = panel.scrollHeight;
+            }
+            return false;
+        };
+        function showLog(msg) {
+            const panel = document.getElementById('debug-panel');
+            if (panel) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.textContent = new Date().toLocaleTimeString() + ': ' + msg;
+                panel.appendChild(entry);
+                panel.scrollTop = panel.scrollHeight;
+            }
+        }
+        showLog("Script loaded. Initializing Cast Receiver v1.4.0...");
+        try {
+            if (typeof cast === 'undefined' || typeof cast.framework === 'undefined') {
+                throw new Error("Google Cast SDK is not loaded! Check network, adblockers, or CSP.");
+            }
+            const context = cast.framework.CastReceiverContext.getInstance();
+            showLog("Cast Receiver Context retrieved.");
+            const NAMESPACE = 'urn:x-cast:test';
+            const options = new cast.framework.CastReceiverOptions();
+            options.customNamespaces = {};
+            try {
+                options.customNamespaces[NAMESPACE] = cast.framework.system.MessageType.JSON;
+                showLog("Namespace registered with framework MessageType.JSON.");
+            } catch (e) {
+                options.customNamespaces[NAMESPACE] = 'JSON';
+                showLog("Namespace registered with 'JSON' string fallback: " + e.message);
+            }
+            let player = null;
+            let isApiLoaded = false;
+            let pendingVideoId = null;
+            // Load YouTube IFrame API dynamically and append to head
+            try {
+                showLog('Initiating YouTube IFrame API load...');
+                const tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                document.head.appendChild(tag);
+                showLog('YouTube API script element appended to head.');
+            } catch (e) {
+                showLog('Dynamic script load failed: ' + e.message);
+            }
+            // YouTube IFrame API callback
+            window.onYouTubeIframeAPIReady = function() {
+                showLog('YouTube API Loaded Successfully');
+                isApiLoaded = true;
+                if (pendingVideoId) {
+                    showLog('Loading pending queued video: ' + pendingVideoId);
+                    loadYoutubeVideo(pendingVideoId);
+                    pendingVideoId = null;
+                }
+            };
+            function loadYoutubeVideo(videoId) {
+                // Force Big Buck Bunny to isolate Karol G restricted music video
+                videoId = "aqz-KE-BPKQ";
+                
+                if (typeof videoId !== 'string') {
+                    showLog('ERROR: videoId is ' + (typeof videoId) + ': ' + JSON.stringify(videoId));
+                    return;
+                }
+                
+                videoId = videoId.trim();
+                showLog('Requested video: "' + videoId + '" (len: ' + videoId.length + ')');
+                if (typeof YT === 'undefined' || typeof YT.Player === 'undefined' || !isApiLoaded) {
+                    showLog('YouTube API not fully ready. Queuing video ID: ' + videoId);
+                    pendingVideoId = videoId;
+                    return;
+                }
+                if (player && typeof player.loadVideoById === 'function') {
+                    showLog('Loading via existing player');
+                    try {
+                        player.loadVideoById({
+                            videoId: videoId,
+                            suggestedQuality: 'default'
                         });
+                        player.mute();
+                    } catch (e) {
+                        showLog('Load video err: ' + e.message);
+                    }
+                } else {
+                    showLog('Creating new player instance on existing iframe');
+                    try {
+                        const iframe = document.getElementById('youtube-player');
+                        if (iframe) {
+                            iframe.src = "https://www.youtube.com/embed/" + videoId + "?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&fs=0&rel=0&iv_load_policy=3";
+                            showLog('Iframe src set, instantiating YT.Player...');
+                            
+                            player = new YT.Player('youtube-player', {
+                                events: {
+                                    'onReady': function(event) {
+                                        showLog('Player instance ready');
+                                        event.target.mute();
+                                        event.target.playVideo();
+                                    },
+                                    'onError': function(event) {
+                                        showLog('Player error: ' + event.data);
+                                    }
+                                }
+                            });
+                        } else {
+                            showLog('Error: youtube-player iframe not found in DOM!');
+                        }
                     } catch (e) {
                         showLog('Create player err: ' + e.message);
                     }
