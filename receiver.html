@@ -216,7 +216,13 @@
                 }
             };
             function loadYoutubeVideo(videoId) {
-                showLog('Requested video: ' + videoId);
+                if (typeof videoId !== 'string') {
+                    showLog('ERROR: videoId is ' + (typeof videoId) + ': ' + JSON.stringify(videoId));
+                    return;
+                }
+                
+                videoId = videoId.trim();
+                showLog('Requested video: "' + videoId + '" (len: ' + videoId.length + ')');
                 if (typeof YT === 'undefined' || typeof YT.Player === 'undefined' || !isApiLoaded) {
                     showLog('YouTube API not fully ready. Queuing video ID: ' + videoId);
                     pendingVideoId = videoId;
@@ -247,9 +253,9 @@
                                 'fs': 0,
                                 'modestbranding': 1,
                                 'rel': 0,
-                                'showinfo': 0,
                                 'mute': 1,
-                                'iv_load_policy': 3
+                                'iv_load_policy': 3,
+                                'origin': window.location.origin
                             },
                             events: {
                                 'onReady': function(event) {
