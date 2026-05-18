@@ -9,21 +9,13 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background: linear-gradient(-45deg, #0b0914, #1a0f2e, #090d26, #180a1f);
-            background-size: 400% 400%;
-            animation: ambientGradient 15s ease infinite;
+            background-color: #000000; /* Solid black background to prevent any GPU-compositing conflict with hardware video decoder */
             font-family: 'Outfit', 'Inter', sans-serif;
             color: white;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-
-        @keyframes ambientGradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
         }
 
         #hud-overlay {
@@ -39,13 +31,11 @@
             padding: 50px;
             box-sizing: border-box;
             pointer-events: none;
-            background: rgba(11, 9, 20, 0.4);
+            background: rgba(11, 9, 20, 0.25); /* Light overlay to keep text readable on top of video */
         }
 
         .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(18, 15, 32, 0.88); /* High-performance solid glass background - safe for all Smart TV chips */
             border-radius: 24px;
             padding: 25px 45px;
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -201,7 +191,7 @@
         </div>
 
         <div id="bottom-bar" class="glass-panel">
-            <div id="status-msg">Connected to Justspin (Receiver v4.2.0)</div>
+            <div id="status-msg">Connected to Justspin (Receiver v4.3.0)</div>
         </div>
     </div>
 
