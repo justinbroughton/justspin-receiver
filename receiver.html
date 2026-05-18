@@ -198,7 +198,7 @@
         </div>
 
         <div id="bottom-bar" class="glass-panel">
-            <div id="status-msg">Connected to Justspin (Receiver v4.4.0)</div>
+            <div id="status-msg">Connected to Justspin (Receiver v4.5.0)</div>
         </div>
     </div>
 
@@ -249,6 +249,7 @@
             ytPlayer = new YT.Player('yt-player', {
                 height: '100%',
                 width: '100%',
+                host: 'https://www.youtube-nocookie.com', // Bypass targeted tracking & minimize ad pre-rolls
                 videoId: '',
                 playerVars: {
                     'autoplay': 1,
@@ -270,7 +271,7 @@
         function onPlayerReady(event) {
             showLog("YouTube Player is Ready and Online!");
             isPlayerReady = true;
-            event.target.unMute(); // Ensure sound plays from TV speakers
+            event.target.mute(); // Mute TV speaker completely so sound streams exclusively from the phone app
         }
 
         function onPlayerError(event) {
