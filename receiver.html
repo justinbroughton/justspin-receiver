@@ -9,13 +9,31 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #000000; /* Solid black background to prevent any GPU-compositing conflict with hardware video decoder */
+            background-color: #000000;
             font-family: 'Outfit', 'Inter', sans-serif;
             color: white;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+        }
+
+        #player-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            background-color: black;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        #yt-player {
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
 
         #hud-overlay {
@@ -31,11 +49,11 @@
             padding: 50px;
             box-sizing: border-box;
             pointer-events: none;
-            background: rgba(11, 9, 20, 0.25); /* Light overlay to keep text readable on top of video */
+            background: rgba(11, 9, 20, 0.25);
         }
 
         .glass-panel {
-            background: rgba(18, 15, 32, 0.88); /* High-performance solid glass background - safe for all Smart TV chips */
+            background: rgba(18, 15, 32, 0.88);
             border-radius: 24px;
             padding: 25px 45px;
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -150,19 +168,6 @@
             box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
         }
 
-        cast-media-player {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 1;
-            background-color: black;
-            --theme-color: transparent;
-            --progress-color: transparent;
-            --splash-image: none;
-        }
-
         .log-entry {
             margin-bottom: 4px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -173,7 +178,9 @@
     </style>
 </head>
 <body>
-    <cast-media-player id="media-player"></cast-media-player>
+    <div id="player-container">
+        <div id="yt-player"></div>
+    </div>
     <div id="hud-overlay">
         <div id="top-bar" class="glass-panel">
             <div id="song-info">
@@ -191,7 +198,7 @@
         </div>
 
         <div id="bottom-bar" class="glass-panel">
-            <div id="status-msg">Connected to Justspin (Receiver v4.3.0)</div>
+            <div id="status-msg">Connected to Justspin (Receiver v4.4.0)</div>
         </div>
     </div>
 
@@ -227,6 +234,49 @@
 
         showLog("HUD Engine Initializing...");
 
+        // Inject YouTube IFrame API dynamically
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        let ytPlayer = null;
+        let currentVideoId = '';
+        let isPlayerReady = false;
+
+        function onYouTubeIframeAPIReady() {
+            showLog("YouTube API loaded, instantiating player...");
+            ytPlayer = new YT.Player('yt-player', {
+                height: '100%',
+                width: '100%',
+                videoId: '',
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'fs': 0,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'showinfo': 0,
+                    'iv_load_policy': 3
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            showLog("YouTube Player is Ready and Online!");
+            isPlayerReady = true;
+            event.target.unMute(); // Ensure sound plays from TV speakers
+        }
+
+        function onPlayerError(event) {
+            showLog("YouTube Player Error: " + event.data);
+        }
+
         try {
             if (typeof cast === 'undefined' || typeof cast.framework === 'undefined') {
                 throw new Error("Google Cast SDK not loaded.");
@@ -261,7 +311,6 @@
                         const actElem = document.getElementById('activity-name');
                         actElem.textContent = data.activityName;
                         
-                        // Dynamic pulsing color theme depending on intensity!
                         const act = data.activityName.toUpperCase();
                         if (act.includes('SPRINT') || act.includes('JUMP')) {
                             actElem.style.background = 'linear-gradient(45deg, #FF1744, #FF5252)';
@@ -280,6 +329,30 @@
                     }
                     if (data.targetRpm) {
                         document.getElementById('target-rpm').textContent = data.targetRpm;
+                    }
+
+                    // Video ID & Playback synchronization!
+                    if (data.videoId && ytPlayer && isPlayerReady) {
+                        if (currentVideoId !== data.videoId) {
+                            currentVideoId = data.videoId;
+                            showLog("Syncing video ID: " + data.videoId);
+                            ytPlayer.loadVideoById(data.videoId, 0);
+                        }
+
+                        if (data.isTimerRunning !== undefined) {
+                            const state = ytPlayer.getPlayerState();
+                            if (data.isTimerRunning) {
+                                if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                                    showLog("Playing TV video");
+                                    ytPlayer.playVideo();
+                                }
+                            } else {
+                                if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
+                                    showLog("Pausing TV video");
+                                    ytPlayer.pauseVideo();
+                                }
+                            }
+                        }
                     }
                 }
             });
