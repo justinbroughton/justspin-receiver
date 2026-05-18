@@ -159,7 +159,7 @@
             z-index: 9999;
             opacity: 0.9;
             pointer-events: none;
-            display: block;
+            display: none; /* Visually hidden by default to keep HUD screen clean; can be switched to block to debug */
             box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
         }
 
@@ -190,9 +190,9 @@
         </div>
 
         <div id="bottom-bar" class="glass-panel">
-            <div id="status-msg">Connected to Justspin</div>
+            <div id="status-msg">Connected to Justspin (Receiver v4.8.0)</div>
             <div id="song-info">
-                Playing: <span id="song-title">Waiting for workout...</span> (v4.7.0)
+                Playing: <span id="song-title">Waiting for workout...</span>
             </div>
         </div>
     </div>
