@@ -198,7 +198,7 @@
         </div>
 
         <div id="bottom-bar" class="glass-panel">
-            <div id="status-msg">Connected to Justspin (Receiver v4.5.0)</div>
+            <div id="status-msg">Connected to Justspin (Receiver v4.6.0)</div>
         </div>
     </div>
 
@@ -249,10 +249,10 @@
             ytPlayer = new YT.Player('yt-player', {
                 height: '100%',
                 width: '100%',
-                host: 'https://www.youtube-nocookie.com', // Bypass targeted tracking & minimize ad pre-rolls
+                host: 'https://www.youtube-nocookie.com',
                 videoId: '',
                 playerVars: {
-                    'autoplay': 1,
+                    'autoplay': 0, // Start cued and clean
                     'controls': 0,
                     'disablekb': 1,
                     'fs': 0,
@@ -271,7 +271,7 @@
         function onPlayerReady(event) {
             showLog("YouTube Player is Ready and Online!");
             isPlayerReady = true;
-            event.target.mute(); // Mute TV speaker completely so sound streams exclusively from the phone app
+            event.target.mute(); // Ensure total TV speaker silence
         }
 
         function onPlayerError(event) {
@@ -337,20 +337,27 @@
                         if (currentVideoId !== data.videoId) {
                             currentVideoId = data.videoId;
                             showLog("Syncing video ID: " + data.videoId);
-                            ytPlayer.loadVideoById(data.videoId, 0);
-                        }
-
-                        if (data.isTimerRunning !== undefined) {
-                            const state = ytPlayer.getPlayerState();
+                            
                             if (data.isTimerRunning) {
-                                if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
-                                    showLog("Playing TV video");
-                                    ytPlayer.playVideo();
-                                }
+                                showLog("Loading and Autoplay video");
+                                ytPlayer.loadVideoById(data.videoId, 0);
                             } else {
-                                if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
-                                    showLog("Pausing TV video");
-                                    ytPlayer.pauseVideo();
+                                showLog("Cueing video (paused state)");
+                                ytPlayer.cueVideoById(data.videoId, 0);
+                            }
+                        } else {
+                            if (data.isTimerRunning !== undefined) {
+                                const state = ytPlayer.getPlayerState();
+                                if (data.isTimerRunning) {
+                                    if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                                        showLog("Playing TV video");
+                                        ytPlayer.playVideo();
+                                    }
+                                } else {
+                                    if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
+                                        showLog("Pausing TV video");
+                                        ytPlayer.pauseVideo();
+                                    }
                                 }
                             }
                         }
