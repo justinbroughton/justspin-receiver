@@ -62,21 +62,9 @@
 
         #top-bar {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: center;
             width: 100%;
-        }
-
-        #song-info {
-            font-size: 26px;
-            font-weight: 400;
-            letter-spacing: -0.5px;
-        }
-
-        #song-title {
-            color: #00E676;
-            font-weight: 800;
-            text-shadow: 0 0 15px rgba(0, 230, 118, 0.3);
         }
 
         #activity-container {
@@ -97,10 +85,10 @@
             text-transform: uppercase;
             letter-spacing: 4px;
             margin-bottom: 15px;
-            background: linear-gradient(45deg, #FF3D00, #FF9100);
+            background: linear-gradient(45deg, #00E676, #69F0AE);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 20px rgba(255, 61, 0, 0.15);
+            text-shadow: 0 4px 20px rgba(0, 230, 118, 0.15);
         }
 
         #timer {
@@ -147,9 +135,16 @@
             letter-spacing: 0.5px;
         }
 
+        #song-info {
+            font-size: 20px;
+            font-weight: 600;
+            color: #00E676;
+            text-shadow: 0 0 15px rgba(0, 230, 118, 0.3);
+        }
+
         #debug-panel {
             position: absolute;
-            bottom: 50px;
+            bottom: 120px;
             right: 50px;
             width: 500px;
             height: 300px;
@@ -182,11 +177,8 @@
         <div id="yt-player"></div>
     </div>
     <div id="hud-overlay">
-        <div id="top-bar" class="glass-panel">
-            <div id="song-info">
-                Playing: <span id="song-title">Waiting for workout...</span>
-            </div>
-            <div class="metric">
+        <div id="top-bar">
+            <div class="metric glass-panel">
                 <div class="metric-value" id="target-rpm">--</div>
                 <div class="metric-label">Target RPM</div>
             </div>
@@ -198,7 +190,10 @@
         </div>
 
         <div id="bottom-bar" class="glass-panel">
-            <div id="status-msg">Connected to Justspin (Receiver v4.6.0)</div>
+            <div id="status-msg">Connected to Justspin</div>
+            <div id="song-info">
+                Playing: <span id="song-title">Waiting for workout...</span> (v4.7.0)
+            </div>
         </div>
     </div>
 
@@ -252,7 +247,7 @@
                 host: 'https://www.youtube-nocookie.com',
                 videoId: '',
                 playerVars: {
-                    'autoplay': 0, // Start cued and clean
+                    'autoplay': 0,
                     'controls': 0,
                     'disablekb': 1,
                     'fs': 0,
@@ -308,20 +303,37 @@
                     if (data.songTitle) {
                         document.getElementById('song-title').textContent = data.songTitle;
                     }
+                    
+                    // Determine remaining seconds
+                    let secondsLeft = 999;
+                    if (data.timer && data.timer.includes(':')) {
+                        const parts = data.timer.split(':');
+                        const minutes = parseInt(parts[0], 10);
+                        const seconds = parseInt(parts[1], 10);
+                        if (!isNaN(minutes) && !isNaN(seconds)) {
+                            secondsLeft = (minutes * 60) + seconds;
+                        }
+                    }
+
                     if (data.activityName) {
                         const actElem = document.getElementById('activity-name');
                         actElem.textContent = data.activityName;
                         
-                        const act = data.activityName.toUpperCase();
-                        if (act.includes('SPRINT') || act.includes('JUMP')) {
+                        const timerElem = document.getElementById('timer');
+                        
+                        // Apply time-based color transitions matching companion app
+                        if (secondsLeft <= 5) {
                             actElem.style.background = 'linear-gradient(45deg, #FF1744, #FF5252)';
-                            document.getElementById('timer').style.color = '#FF5252';
-                        } else if (act.includes('CLIMB')) {
+                            timerElem.style.color = '#FF5252';
+                            timerElem.style.textShadow = '0 0 30px rgba(255, 82, 82, 0.4)';
+                        } else if (secondsLeft <= 10) {
                             actElem.style.background = 'linear-gradient(45deg, #FF9100, #FFD600)';
-                            document.getElementById('timer').style.color = '#FFD600';
+                            timerElem.style.color = '#FFD600';
+                            timerElem.style.textShadow = '0 0 30px rgba(255, 214, 0, 0.4)';
                         } else {
                             actElem.style.background = 'linear-gradient(45deg, #00E676, #69F0AE)';
-                            document.getElementById('timer').style.color = '#FFF';
+                            timerElem.style.color = '#FFF';
+                            timerElem.style.textShadow = '0 0 30px rgba(255, 255, 255, 0.2)';
                         }
                         actElem.style.webkitBackgroundClip = 'text';
                     }
