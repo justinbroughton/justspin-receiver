@@ -49,15 +49,7 @@
             padding: 50px;
             box-sizing: border-box;
             pointer-events: none;
-            background: rgba(11, 9, 20, 0.25);
-        }
-
-        .glass-panel {
-            background: rgba(18, 15, 32, 0.88);
-            border-radius: 24px;
-            padding: 25px 45px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            background: transparent; /* 100% transparent background to unlock full video visibility */
         }
 
         #top-bar {
@@ -67,36 +59,64 @@
             width: 100%;
         }
 
+        .metric {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.35); /* Ultra-light translucent backup to preserve contrast */
+            border-radius: 20px;
+            padding: 15px 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .metric-value {
+            font-size: 72px;
+            font-weight: 900;
+            color: #40C4FF;
+            text-shadow: 0 0 20px rgba(64, 196, 255, 0.4);
+            line-height: 1;
+            display: inline-block;
+            transition: transform 0.1s ease;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #B0BEC5;
+            letter-spacing: 1.5px;
+            margin-top: 6px;
+        }
+
         #activity-container {
             align-self: center;
             text-align: center;
             min-width: 650px;
-            padding: 50px 80px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.04);
-            box-shadow: 0 0 50px rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            background: transparent; /* Completely borderless and transparent activity display */
+            box-shadow: none;
+            border: none;
             transform: scale(1);
             transition: transform 0.3s ease;
         }
 
         #activity-name {
-            font-size: 76px;
+            font-size: 80px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 4px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             background: linear-gradient(45deg, #00E676, #69F0AE);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 4px 20px rgba(0, 230, 118, 0.15);
+            text-shadow: 0 4px 20px rgba(0, 230, 118, 0.25);
         }
 
         #timer {
-            font-size: 140px;
+            font-size: 150px;
             font-weight: 900;
             font-family: monospace;
             color: #00E676;
-            text-shadow: 0 0 30px rgba(0, 230, 118, 0.4);
+            text-shadow: 0 0 35px rgba(0, 230, 118, 0.45);
             letter-spacing: -2px;
         }
 
@@ -105,27 +125,11 @@
             justify-content: space-between;
             align-items: center;
             width: 100%;
-        }
-
-        .metric {
-            text-align: center;
-        }
-
-        .metric-value {
-            font-size: 64px;
-            font-weight: 900;
-            color: #40C4FF;
-            text-shadow: 0 0 20px rgba(64, 196, 255, 0.4);
-            line-height: 1;
-        }
-
-        .metric-label {
-            font-size: 18px;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: #B0BEC5;
-            letter-spacing: 1.5px;
-            margin-top: 8px;
+            background: rgba(0, 0, 0, 0.35); /* Soft translucent backplane for legibility */
+            border-radius: 20px;
+            padding: 15px 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
         }
 
         #status-msg {
@@ -140,6 +144,22 @@
             font-weight: 600;
             color: #00E676;
             text-shadow: 0 0 15px rgba(0, 230, 118, 0.3);
+        }
+
+        /* Cadence Pulse Metronome Animation */
+        @keyframes cadence-pulse {
+            0% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(64, 196, 255, 0.4);
+            }
+            50% {
+                transform: scale(1.1);
+                text-shadow: 0 0 40px rgba(64, 196, 255, 0.8), 0 0 60px rgba(64, 196, 255, 0.4);
+            }
+            100% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(64, 196, 255, 0.4);
+            }
         }
 
         #debug-panel {
@@ -159,8 +179,7 @@
             z-index: 9999;
             opacity: 0.9;
             pointer-events: none;
-            display: none; /* Visually hidden by default to keep HUD screen clean; can be switched to block to debug */
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            display: none; /* Visually hidden to keep HUD screen clean */
         }
 
         .log-entry {
@@ -178,19 +197,19 @@
     </div>
     <div id="hud-overlay">
         <div id="top-bar">
-            <div class="metric glass-panel">
+            <div class="metric">
                 <div class="metric-value" id="target-rpm">--</div>
                 <div class="metric-label">Target RPM</div>
             </div>
         </div>
 
-        <div id="activity-container" class="glass-panel">
+        <div id="activity-container">
             <div id="activity-name">GET READY</div>
             <div id="timer">00:00</div>
         </div>
 
-        <div id="bottom-bar" class="glass-panel">
-            <div id="status-msg">Connected to Justspin (Receiver v4.9.0)</div>
+        <div id="bottom-bar">
+            <div id="status-msg">Connected to Justspin (Receiver v5.0.0)</div>
             <div id="song-info">
                 Playing: <span id="song-title">Waiting for workout...</span>
             </div>
@@ -325,23 +344,39 @@
                         if (secondsLeft <= 5) {
                             actElem.style.background = 'linear-gradient(45deg, #FF1744, #FF5252)';
                             timerElem.style.color = '#FF5252';
-                            timerElem.style.textShadow = '0 0 30px rgba(255, 82, 82, 0.4)';
+                            timerElem.style.textShadow = '0 0 35px rgba(255, 82, 82, 0.45)';
                         } else if (secondsLeft <= 10) {
                             actElem.style.background = 'linear-gradient(45deg, #FF9100, #FFD600)';
                             timerElem.style.color = '#FFD600';
-                            timerElem.style.textShadow = '0 0 30px rgba(255, 214, 0, 0.4)';
+                            timerElem.style.textShadow = '0 0 35px rgba(255, 214, 0, 0.45)';
                         } else {
                             actElem.style.background = 'linear-gradient(45deg, #00E676, #69F0AE)';
                             timerElem.style.color = '#00E676';
-                            timerElem.style.textShadow = '0 0 30px rgba(0, 230, 118, 0.4)';
+                            timerElem.style.textShadow = '0 0 35px rgba(0, 230, 118, 0.45)';
                         }
                         actElem.style.webkitBackgroundClip = 'text';
                     }
                     if (data.timer) {
                         document.getElementById('timer').textContent = data.timer;
                     }
+                    
+                    // Update Target RPM & Dynamic Cadence Pulse metronome!
                     if (data.targetRpm) {
-                        document.getElementById('target-rpm').textContent = data.targetRpm;
+                        const rpmElem = document.getElementById('target-rpm');
+                        rpmElem.textContent = data.targetRpm;
+                        
+                        // Extract the first available numeric cadence value
+                        const match = data.targetRpm.match(/\d+/);
+                        const rpmVal = match ? parseInt(match[0], 10) : 0;
+                        
+                        if (rpmVal > 0) {
+                            // Duration of 1 pulse (seconds) = 60 / RPM
+                            const pulseDuration = 60 / rpmVal;
+                            rpmElem.style.animation = `cadence-pulse ${pulseDuration}s infinite ease-in-out`;
+                            showLog("Dynamic Cadence Metronome: " + rpmVal + " RPM (" + pulseDuration.toFixed(2) + "s pulse)");
+                        } else {
+                            rpmElem.style.animation = 'none';
+                        }
                     }
 
                     // Video ID & Playback synchronization!
